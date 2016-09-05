@@ -1,0 +1,33 @@
+#!/bin/bash
+#
+# This will run all the executables it can find inside qemu_$PHASE.d directory
+# Phases are: 
+# prepare begin, start begin, started begin, stopped end, release end, migrate begin, restore begin, reconnect begin, attach begin
+# Full description https://www.libvirt.org/hooks.html
+#
+# Each script can have a config file. Name of the config file is passed as the second parameter to it
+# First parameter is the name of qemu guest
+# Log file per VM_name+script will be rewriten at every invokation and put in $LOGS_DIR 
+
+#STDIN=$(/bin/cat)
+VM_NAME=${1}
+PHASE=${2}_${3}
+SCRIPT_DIR="/etc/libvirt/hooks/qemu_${PHASE}.d"
+CONFIG_DIR="/etc/libvirt/hooks/conf/"
+LOGS_DIR="/etc/libvirt/hooks/logs/"
+
+if [[ -d ${SCRIPT_DIR} ]]; then
+	cd ${SCRIPT_DIR}
+else
+	exit 0
+fi
+for SCRIPT in *; do
+	if [[ -x ${SCRIPT} ]]; then
+		LOG_FILE="${LOGS_DIR}/qemu_${PHASE}_${VM_NAME}_$(basename ${SCRIPT%.*}.log)"
+		CONFIG_FILE="${CONFIG_DIR}/$(basename ${SCRIPT%.*}.conf)"
+		# script <qemu_guest_name> <config_file>
+		./${SCRIPT} ${VM_NAME} ${CONFIG_FILE} > ${LOG_FILE} 2>&1
+	fi
+done
+
+exit 0

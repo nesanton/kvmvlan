@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+# This will run all the executables it can find inside daemon_$PHASE.d directory
+# Phases are:
+# start, shutdown, reload 
+# Full description https://www.libvirt.org/hooks.html
+#
+# Each script can have a config file. Name of the config file is passed as the second parameter to it
+# First parameter is the daemon event/phase = {start|shutdown|reload}
+# Log file per phase+script will be rewriten at every invokation and put in $LOGS_DIR 
+
+PHASE=${2}
+SCRIPT_DIR="/etc/libvirt/hooks/daemon_${PHASE}.d"
+CONFIG_DIR="/etc/libvirt/hooks/conf"
+LOGS_DIR="/etc/libvirt/hooks/logs"
+
+if [[ -d ${SCRIPT_DIR} ]]; then
+	cd ${SCRIPT_DIR}
+else
+	exit 0
+fi
+for SCRIPT in *; do
+	if [[ -x ${SCRIPT} ]]; then
+		LOG_FILE="${LOGS_DIR}/daemon_${PHASE}_$(basename ${SCRIPT%.*}.log)"
+		CONFIG_FILE="${CONFIG_DIR}/$(basename ${SCRIPT%.*}.conf)"
+		# script <daemon_phase> <config_file>
+		./${SCRIPT} ${PHASE} ${CONFIG_FILE} > ${LOG_FILE} 2>&1
+	fi
+done
+
+exit 0
