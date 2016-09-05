@@ -77,9 +77,9 @@ Physical port:
 $ cat /etc/sysconfig/network-scripts/ifcfg-eth0
 NAME="eth0"
 HWADDR="xx:xx:xx:xx:xx:xx" 
-ONBOOT=yes
-BOOTPROTO=none
-DEVICE=eth0
+ONBOOT="yes"
+BOOTPROTO="none"
+DEVICE="eth0"
 BRIDGE="br0"
 ```
 
@@ -87,14 +87,14 @@ Bridge:
 
 ```bash 
 $ cat /etc/sysconfig/network-scripts/ifcfg-br0
-DEVICE=br0
-TYPE=Bridge
+DEVICE="br0"
+TYPE="Bridge"
 ONBOOT="yes"
-IPADDR=host.ip.address.here
-NETMASK=the.sub.net.mast
-NETWORK=first.ip.of.subnet
-BROADCAST=last.ip.of.subnet
-BOOTPROTO=static
+IPADDR="host.ip.address.here"
+NETMASK="the.sub.net.mast"
+NETWORK="first.ip.of.subnet"
+BROADCAST="last.ip.of.subnet"
+BOOTPROTO="static"
 ```
 
 ## Hooks Design
@@ -168,3 +168,33 @@ ln -s /etc/libvirt/hooks/'''qemu_started_begin.d'''/something_to_do_on_VM_start.
 ```
 
 So it'll be triggered during another event too. It'll use the same config, but will report to a different log file, because logs reflect events in filenames.
+
+
+## Finally to vlan management
+
+Like a normal switch, virtual one has trunk and access ports. Trunk is an interconnect between switches, access is where some client device is connected (VM). In our example the trunk port is bond0, access ports are vethX. br0 is an access port as well but it is somewhat special. 
+
+- bond0 and br0 are persistent due to configuration from previous chapter and, more importantly, they are "global" to all the VMs 
+- vethX are on the contrary ephemeral and their VLAN membership is local, it does not affect other VMs or ports.
+
+Let's put foundation of our vlan management into two config files:
+
+* **bridge_init.conf** for global bridge settings (persistent)
+* **vlan_filtering.conf** for VM access ports (ephemeral) vlan management
+
+Scripts `vlan_filterring.py` and `bridge_init.py` are put respectively into `/etc/libvirt/hooks/qemu_started_begin.d` and `/etc/libvirt/hooks/daemon_start.d`.
+
+Optionally a link of `bridge_init.py` for daemon reload is made to `/etc/libvirt/hooks/daemon_reload.d/`. Then the following would work:
+```
+systemctl reload libvirt
+```
+
+**Important note:**
+For vlan filtering to work each bridge device has to have the following setting:
+``` 
+echo 1 > /sys/devices/virtual/net/br0/bridge/vlan_filtering
+``` 
+It is currently not possible in Centos to set this with sysctl, hence it's done from bridge_init.py script
+
+To perform the netlink operations from python the [pyroute2](https://github.com/svinota/pyroute2) library is used. 
+
