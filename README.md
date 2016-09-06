@@ -41,7 +41,7 @@ The other will have two interfaces supposedly detected as eth0 and eth1 inside i
 
 Names vethX were made up to refer to switch ports allocated to VMs from the host. It is important to understand the difference between vethX on the host and ethX inside a VM. These names are actually coming from VMs' xml configs.
 
-br0 serves two functions: on one hand it is a name for the switch. On the other hand it is a port thru which the host itself is connected to outside. Host's ip settings can be set here and, yes, it can also be put into a separate VLAN, but only one.
+br0 serves two functions: on one hand it is a name for the switch. On the other hand it is a port thru which the host itself is connected to outside. Host's ip settings can be set here and, yes, it can also have its PVID and extra VIDs
 
 All the physical (eth0) and virtual (vethX) ports are attached to the bridge br0 on the configuration files level. Former thru /etc/sysconfig/network-scripts/ files and latter thru VM's XML configuration found in /etc/libvirt/qemu/. So there is no need in specifying the bridge name in commands "bridge vlan add ...". 
 
@@ -62,7 +62,7 @@ All the physical (eth0) and virtual (vethX) ports are attached to the bridge br0
                                |                    | 
                                |                    |
                                |   pvid=1           | 
-                               |____________________|
+                               |___vids=200_________|
                                      | br0  |
                                      |______|
                                          |
