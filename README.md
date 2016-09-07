@@ -66,7 +66,7 @@ All the physical (eth0) and virtual (vethX) ports are attached to the bridge br0
                                      | br0  |
                                      |______|
                                          |
-                                         |------ to the KVM host
+                                         |------ to KVM host
 ```
 
 ## Sample network configuration
