@@ -1,3 +1,5 @@
+[TL;DR -> installation](#installation)
+
 # kvmvlan
 vlan management for KVM based on libvirt hooks
 
@@ -198,3 +200,31 @@ It is currently not possible in Centos to set this with sysctl, hence it's done 
 
 To perform the netlink operations from python the [pyroute2](https://github.com/svinota/pyroute2) library is used. 
 
+
+# <a name="installation"></a>Installation
+
+* pip install pyroute2>=0.4.11
+* Clone or download .zip to some place on your KVM host, e.g /tmp
+* Copy/move the "hooks" folder to /etc/libvirt
+* Edit /etc/libvirt/conf/bridge_init.conf and /etc/libvirt/conf/vlan_filtering.conf to reflect your bridge names, physical and virtual bridge port names, VM names. 
+* If you like global bridge VLAN settings to be reconfigured when libvirtd is reloaded, then make a link as follows:
+```
+mkdir /etc/libvirt/hooks/daemon_reload.d/
+ln -s /etc/libvirt/hooks/daemon_start.d/bridge_init.py /etc/libvirt/hooks/daemon_reload.d/
+```
+
+Keep in mind that kvmvlan is not aware of any bridge or interface names. They should be "hardcoded" in the conf files. 
+Make sure your VMs have permanent names for bridge ports, e.g `virt-install ... --network=bridge:br1,model=virtio,target=veth1 ...`. Or in the XML config:
+```
+<interface type='bridge'>
+      ...
+      <source bridge='br1'/>
+      <target dev='veth0'/>
+      <model type='virtio'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
+    </interface>
+```
+
+Both `bridge_init.py` and `vlan_filtering.py` may be run manually. Use `--help` for options.
+
+Every time a hook is triggered a corresponding log file wil be *rewritten* in `/etc/libvirt/logs`. 
