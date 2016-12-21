@@ -14,11 +14,15 @@ SCRIPT_DIR="/etc/libvirt/hooks/daemon_${PHASE}.d"
 CONFIG_DIR="/etc/libvirt/hooks/conf"
 LOGS_DIR="/etc/libvirt/hooks/logs"
 
+
+[[ -d ${LOGS_DIR} ]] || mkdir -p ${LOGS_DIR}
+
 if [[ -d ${SCRIPT_DIR} ]]; then
 	cd ${SCRIPT_DIR}
 else
 	exit 0
 fi
+
 for SCRIPT in *; do
 	if [[ -x ${SCRIPT} ]]; then
 		LOG_FILE="${LOGS_DIR}/daemon_${PHASE}_$(basename ${SCRIPT%.*}.log)"
