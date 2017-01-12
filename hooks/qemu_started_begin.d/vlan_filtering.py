@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
+import sys
 import argparse
 import ConfigParser
 from pyroute2 import IPRoute 
 
-parser = argparse.ArgumentParser()
 parser = argparse.ArgumentParser(description='Prepare VLAN settings on Linux Bridge interfaces for KVM')
 parser.add_argument('vm_name', 
 					help='Name of qemu guest')
@@ -28,7 +28,7 @@ def manage_vlans(ipr, port_index, vids, action='add', pvid=False, self=False):
 	'''
 	flags = 0
 	if pvid and len(vids) != 1:
-		print 'Cannot set multiple PVIDs %s on interface %s' % (str(vids), port)
+		print 'Cannot set multiple PVIDs %s on interface %s' % str(vids)
 		return False
 	else:
 		if pvid:
