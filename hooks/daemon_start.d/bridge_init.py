@@ -130,7 +130,7 @@ def main(ARGV):
 				trunk_pvid = bridge_conf.getint(bridge, 'trunk-pvid')
 				trunk_tags = filter(None, bridge_conf.get(bridge, 'trunk-tags').split())
 				br_pvid = bridge_conf.getint(bridge, 'br-pvid')
-				br_tags = filter(None, bridge_conf.get(bridge, 'trunk-tags').split())
+				br_tags = filter(None, bridge_conf.get(bridge, 'br-tags').split())
 
 				if trunk_tags:
 					try:
