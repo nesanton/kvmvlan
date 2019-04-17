@@ -228,3 +228,5 @@ Make sure your VMs have permanent names for bridge ports, e.g `virt-install ... 
 Both `bridge_init.py` and `vlan_filtering.py` may be run manually. Use `--help` for options.
 
 Every time a hook is triggered a corresponding log file wil be *rewritten* in `/etc/libvirt/logs`. 
+
+In case you make use of SELinux, AppArmor etc, you might be getting something like `socket.error: [Errno 13] Permission denied` in the logs. Fix would depend on distro, let me know if you have troubles. A [solution](https://github.com/nesanton/kvmvlan/issues/2) for AppArmor.
