@@ -2,7 +2,7 @@
 
 import sys
 import argparse
-import ConfigParser
+import configparser
 from pyroute2 import IPRoute
 
 parser = argparse.ArgumentParser(description='Prepare VLAN settings on Linux Bridge interfaces for KVM')
@@ -29,7 +29,7 @@ def manage_vlans(ipr, port_index, vids, action='add', pvid=False, self=False):
 	'''
 	flags = 0
 	if pvid and len(vids) != 1:
-		print 'Cannot set multiple PVIDs %s on interface' % str(vids)
+		print('Cannot set multiple PVIDs %s on interface' % str(vids))
 		return False
 	else:
 		if pvid:
@@ -100,12 +100,12 @@ def clear_vlan_info(port_vlans_raw):
 def main(ARGV):
 	conf_file = ARGV.conf_file
 
-	bridge_conf = ConfigParser.SafeConfigParser(allow_no_value=False)
+	bridge_conf = configparser.ConfigParser(allow_no_value=False)
 	with open(conf_file) as f:
-		bridge_conf.readfp(f)
+		bridge_conf.read_file(f)
 
 	if not bridge_conf.defaults():
-		print 'ERROR: could not find defaults section in the config %s' % conf_file
+		print('ERROR: could not find defaults section in the config %s' % conf_file)
 		sys.exit(1)
 
 	ipr = IPRoute()
@@ -114,7 +114,7 @@ def main(ARGV):
 	for bridge in bridge_conf.sections():
 
 		if bridge not in links:
-			print "WARNING: Bridge %s from the config %s is not present. Skipping" % (bridge, conf_file)
+			print("WARNING: Bridge %s from the config %s is not present. Skipping" % (bridge, conf_file))
 		else:
 
 			# Enabling bridge vlan filtering for current bridge interface
@@ -124,27 +124,27 @@ def main(ARGV):
 
 			trunk_port = bridge_conf.get(bridge, 'trunk-port')
 			if not trunk_port:
-				print 'WARNING: trunk-port for bridge %s is not set in the config %s. Skipping' % (bridge, conf_file)
+				print('WARNING: trunk-port for bridge %s is not set in the config %s. Skipping' % (bridge, conf_file))
 			else:
 				idx = ipr.link_lookup(ifname=trunk_port)[0]
 				trunk_pvid = bridge_conf.getint(bridge, 'trunk-pvid')
-				trunk_tags = filter(None, bridge_conf.get(bridge, 'trunk-tags').split())
+				trunk_tags = [_f for _f in bridge_conf.get(bridge, 'trunk-tags').split() if _f]
 				br_pvid = bridge_conf.getint(bridge, 'br-pvid')
-				br_tags = filter(None, bridge_conf.get(bridge, 'br-tags').split())
+				br_tags = [_f for _f in bridge_conf.get(bridge, 'br-tags').split() if _f]
 
 				if trunk_tags:
 					try:
-						trunk_tags = map(int, trunk_tags)
+						trunk_tags = list(map(int, trunk_tags))
 					except ValueError:
-						print 'Could not parse VID list %s for trunk-port %s on bridge %s. Skipping' % (bridge_conf.get(bridge, 'trunk-tags'), trunk_port, bridge)
+						print('Could not parse VID list %s for trunk-port %s on bridge %s. Skipping' % (bridge_conf.get(bridge, 'trunk-tags'), trunk_port, bridge))
 						# Skipping to next bridge
 						continue
 
 				if br_tags:
 					try:
-						br_tags = map(int, br_tags)
+						br_tags = list(map(int, br_tags))
 					except ValueError:
-						print 'Could not parse VID list %s for bridge interface %s. Skipping' % (bridge_conf.get(bridge, 'br-tags'), bridge)
+						print('Could not parse VID list %s for bridge interface %s. Skipping' % (bridge_conf.get(bridge, 'br-tags'), bridge))
 						# Skipping to next bridge
 						continue
 
@@ -154,34 +154,34 @@ def main(ARGV):
 				# exactly how the config defines it. Preferably not touching anything if no changes are required.
 				# Only two combinations of flags we consider applicable -- 6 and 0.
 				# Only one tag can be set as PVID (flags=6)
-				print
-				print 'Changing VLAN filtering for trunk-port %s on bridge %s' % (trunk_port, bridge)
-				print 'Current set: PVID(s) %s, VIDs %s, Flags unclear %s' % (str(port_tags['untagged']),
+				print()
+				print('Changing VLAN filtering for trunk-port %s on bridge %s' % (trunk_port, bridge))
+				print('Current set: PVID(s) %s, VIDs %s, Flags unclear %s' % (str(port_tags['untagged']),
 																			  str(port_tags['tagged']),
-																			  str(port_tags['not_clear']))
-				print 'New set: PVID %d, VIDs: %s' % (trunk_pvid, str(trunk_tags))
+																			  str(port_tags['not_clear'])))
+				print('New set: PVID %d, VIDs: %s' % (trunk_pvid, str(trunk_tags)))
 
 				# Set our PVID if not already set
 				if trunk_pvid not in port_tags['untagged']:
-					print 'Setting PVID %d' % trunk_pvid
+					print('Setting PVID %d' % trunk_pvid)
 					manage_vlans(ipr, idx, [trunk_pvid], 'add', pvid=True)
 
 				# Remove all PVIDs (There must be only one, really) if it's not the PVID we've just set
 				pvids_to_remove = [ tag for tag in port_tags['untagged'] if tag != trunk_pvid ]
 				if pvids_to_remove:
-					print 'Deleting PVIDs %s' % str(pvids_to_remove)
+					print('Deleting PVIDs %s' % str(pvids_to_remove))
 					manage_vlans(ipr, idx, pvids_to_remove, 'del')
 
 				# Remove all "not_clear" VIDs
 				unclear_to_remove = [ tag for tag in port_tags['not_clear'] if tag != trunk_pvid ]
 				if unclear_to_remove:
-					print 'Deleting VIDs %s because of unclear flags' % str(unclear_to_remove)
+					print('Deleting VIDs %s because of unclear flags' % str(unclear_to_remove))
 					manage_vlans(ipr, idx, unclear_to_remove, 'del')
 
 				# Remove all VIDs which are not in our config for this bridge's trunk-port
 				vids_to_remove = [ tag for tag in port_tags['tagged'] if tag not in trunk_tags]
 				if vids_to_remove:
-					print 'Deleting VIDs %s' % str(vids_to_remove)
+					print('Deleting VIDs %s' % str(vids_to_remove))
 					manage_vlans(ipr, idx, vids_to_remove, 'del')
 
 				# add the VIDs from the config if they are not already set
@@ -189,7 +189,7 @@ def main(ARGV):
 				# but those were not in vids anyway
 				vids_to_add = [ tag for tag in trunk_tags if tag not in port_tags['tagged']]
 				if vids_to_add:
-					print 'Setting VIDs %s' % str(vids_to_add)
+					print('Setting VIDs %s' % str(vids_to_add))
 					manage_vlans(ipr, idx, vids_to_add, 'add')
 
 
@@ -201,33 +201,33 @@ def main(ARGV):
 				# Let's check what is currently set as PVID
 				idx = ipr.link_lookup(ifname=bridge)[0]
 				port_tags = clear_vlan_info(ipr.get_vlans(index=idx))
-				print 'Setting VLANs for bridge interface itself (%s)' % bridge
-				print 'Current set: PVID(s) %s, VIDs %s, Flags unclear %s' % (str(port_tags['untagged']),
+				print('Setting VLANs for bridge interface itself (%s)' % bridge)
+				print('Current set: PVID(s) %s, VIDs %s, Flags unclear %s' % (str(port_tags['untagged']),
 																			  str(port_tags['tagged']),
-																			  str(port_tags['not_clear']))
-				print 'New set: PVID %d, VIDs: %s' % (br_pvid, str(trunk_tags))
+																			  str(port_tags['not_clear'])))
+				print('New set: PVID %d, VIDs: %s' % (br_pvid, str(trunk_tags)))
 
 				# Set our PVID if not already set
 				if br_pvid not in port_tags['untagged']:
-					print 'Setting PVID %d' % br_pvid
+					print('Setting PVID %d' % br_pvid)
 					manage_vlans(ipr, idx, [br_pvid], 'add', pvid=True, self=True)
 
 				# Remove all PVIDs (There must be only one, really) if it's not the PVID we've just set
 				pvids_to_remove = [ tag for tag in port_tags['untagged'] if tag != br_pvid ]
 				if pvids_to_remove:
-					print 'Deleting PVIDs %s' % str(pvids_to_remove)
+					print('Deleting PVIDs %s' % str(pvids_to_remove))
 					manage_vlans(ipr, idx, pvids_to_remove, 'del', self=True)
 
 				# Remove all "not_clear" VIDs
 				unclear_to_remove = [ tag for tag in port_tags['not_clear'] if tag != br_pvid ]
 				if unclear_to_remove:
-					print 'Deleting VIDs %s because of unclear flags' % str(unclear_to_remove)
+					print('Deleting VIDs %s because of unclear flags' % str(unclear_to_remove))
 					manage_vlans(ipr, idx, unclear_to_remove, 'del', self=True)
 
 				# Remove all VIDs which are not in our config for this bridge's trunk-port
 				vids_to_remove = [ tag for tag in port_tags['tagged'] if tag not in br_tags]
 				if vids_to_remove:
-					print 'Deleting VIDs %s' % str(vids_to_remove)
+					print('Deleting VIDs %s' % str(vids_to_remove))
 					manage_vlans(ipr, idx, vids_to_remove, 'del', self=True)
 
 				# add the VIDs from the config if they are not already set
@@ -235,9 +235,9 @@ def main(ARGV):
 				# but those were not in vids anyway
 				vids_to_add = [ tag for tag in br_tags if tag not in port_tags['tagged']]
 				if vids_to_add:
-					print 'Setting VIDs %s' % str(vids_to_add)
+					print('Setting VIDs %s' % str(vids_to_add))
 					manage_vlans(ipr, idx, vids_to_add, 'add', self=True)
-				print
+				print()
 
 
 if __name__ == '__main__':

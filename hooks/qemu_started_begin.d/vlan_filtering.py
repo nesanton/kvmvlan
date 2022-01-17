@@ -2,7 +2,7 @@
 
 import sys
 import argparse
-import ConfigParser
+import configparser
 from pyroute2 import IPRoute 
 
 parser = argparse.ArgumentParser(description='Prepare VLAN settings on Linux Bridge interfaces for KVM')
@@ -28,7 +28,7 @@ def manage_vlans(ipr, port_index, vids, action='add', pvid=False, self=False):
 	'''
 	flags = 0
 	if pvid and len(vids) != 1:
-		print 'Cannot set multiple PVIDs %s on interface %s' % str(vids)
+		print('Cannot set multiple PVIDs %s on interface %s' % str(vids))
 		return False
 	else:
 		if pvid:
@@ -100,12 +100,12 @@ def main(ARGV):
 	vm_name = ARGV.vm_name
 	conf_file = ARGV.conf_file
 
-	vlans_conf = ConfigParser.SafeConfigParser(allow_no_value=False)
+	vlans_conf = configparser.SafeConfigParser(allow_no_value=False)
 	with open(conf_file) as f:
 		vlans_conf.readfp(f)
 
 	if not vlans_conf.defaults():
-		print 'ERROR: could not find defaults section in the config %s' % conf_file
+		print('ERROR: could not find defaults section in the config %s' % conf_file)
 		sys.exit(1)
 
 	ipr = IPRoute()
@@ -115,24 +115,24 @@ def main(ARGV):
 		guest = vlans_conf.get(interface, 'guest')
 		# Apply changes only for current guest
 		if guest != vm_name:
-			print 'Skipping interface %s from other guest (%s)' % (interface, guest)
+			print('Skipping interface %s from other guest (%s)' % (interface, guest))
 		else:
 			
 			# TODO ??: check if the interface is in VM's xml
 			
 			if interface not in links:
-				print "WARNING: Link %s from the config %s is not present. Skipping" % (interface, conf_file)
+				print("WARNING: Link %s from the config %s is not present. Skipping" % (interface, conf_file))
 			else:
 
 				idx = ipr.link_lookup(ifname=interface)[0]
 				pvid = vlans_conf.getint(interface, 'pvid')
-				vids = filter(None, vlans_conf.get(interface, 'tagged').split())
+				vids = [_f for _f in vlans_conf.get(interface, 'tagged').split() if _f]
 				if vids:
-					print vids
+					print(vids)
 					try:
-						vids = map(int, vids)
+						vids = list(map(int, vids))
 					except ValueError:
-						print 'Could not parse VID list %s for interface %s. Skipping' % (vlans_conf.get(interface, 'tagged'), interface)
+						print('Could not parse VID list %s for interface %s. Skipping' % (vlans_conf.get(interface, 'tagged'), interface))
 						# Skipping to next bridge
 						continue
 				
@@ -142,34 +142,34 @@ def main(ARGV):
 				# exactly how the config defines it. Preferably not touching anything if no changes are required.
 				# Only two combinations of flags we consider applicable -- 6 and 0. 
 				# Only one tag can be set as PVID (flags=6)
-				print
-				print 'Changing VLAN filtering for interface %s' % interface
-				print 'Current set: PVID(s) %s, VIDs %s, Flags unclear %s' % (str(port_tags['untagged']),
+				print()
+				print('Changing VLAN filtering for interface %s' % interface)
+				print('Current set: PVID(s) %s, VIDs %s, Flags unclear %s' % (str(port_tags['untagged']),
 																			  str(port_tags['tagged']),
-																			  str(port_tags['not_clear']))
-				print 'New set: PVID %d, VIDs: %s' % (pvid, str(vids))
+																			  str(port_tags['not_clear'])))
+				print('New set: PVID %d, VIDs: %s' % (pvid, str(vids)))
 	
 				# Set our PVID with flags INFO_PVID and INFO_UNTAGGED (0x2 and 0x4 = 6) if it's not already set. 
 				if pvid not in port_tags['untagged']:
-					print 'Setting PVID %d' % pvid
+					print('Setting PVID %d' % pvid)
 					manage_vlans(ipr, idx, [pvid], 'add', pvid=True)
 	
 				# Remove all PVIDs (There must be only one, really) if it's not the PVID we've just set
 				pvids_to_remove = [ tag for tag in port_tags['untagged'] if tag != pvid ]
 				if pvids_to_remove:
-					print 'Deleting PVIDs %s' % str(pvids_to_remove)
+					print('Deleting PVIDs %s' % str(pvids_to_remove))
 					manage_vlans(ipr, idx, pvids_to_remove, 'del')
 	
 				# Remove all "not_clear" VIDs
 				unclear_to_remove = [ tag for tag in port_tags['not_clear'] if tag != pvid ]
 				if unclear_to_remove:
-					print 'Deleting VIDs %s because of unclear flags' % str(unclear_to_remove)
+					print('Deleting VIDs %s because of unclear flags' % str(unclear_to_remove))
 					manage_vlans(ipr, idx, unclear_to_remove, 'del')
 	
 				# Remove all VIDs which are not in our config for this interface
 				vids_to_remove = [ tag for tag in port_tags['tagged'] if tag not in vids]
 				if vids_to_remove:
-					print 'Deleting VIDs %s' % str(vids_to_remove)
+					print('Deleting VIDs %s' % str(vids_to_remove))
 					manage_vlans(ipr, idx, vids_to_remove, 'del')
 	
 				# add the VIDs from the config if they are not already set
@@ -177,10 +177,10 @@ def main(ARGV):
 				# but those were not in 'vids' list anyway
 				vids_to_add = [ tag for tag in vids if tag not in port_tags['tagged']]
 				if vids_to_add:
-					print 'Setting VIDs %s' % str(vids_to_add)
+					print('Setting VIDs %s' % str(vids_to_add))
 					manage_vlans(ipr, idx, vids_to_add, 'add')
 
-				print
+				print()
 		
 			
 if __name__ == '__main__':
